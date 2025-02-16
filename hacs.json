@@ -1,0 +1,12 @@
+{
+  "name": "PowerDog Integration",
+  "country": "DE",
+  "domains": ["powerdog"],
+  "homeassistant": "2023.1.0",
+  "render_readme": true,
+  "filename": "custom_components/powerdog",
+  "iot_class": "local_polling",
+  "zip_release": false,
+  "image": "https://raw.githubusercontent.com/patrickweh/ha-powerdog/main/custom_components/powerdog/logo.png",
+  "icon": "https://raw.githubusercontent.com/patrickweh/ha-powerdog/main/custom_components/powerdog/icon.png"
+}

@@ -15,7 +15,7 @@ To install this integration via [HACS](https://hacs.xyz/), follow these steps:
 3. Select **Custom repositories**.
 4. Add the following repository:
    ```
-   https://github.com/YOUR_GITHUB_USERNAME/ha-powerdog
+   https://github.com/patrickweh/ha-powerdog
    ```
     - Category: **Integration**
 5. Click **Add** and then **Close**.
@@ -24,7 +24,7 @@ To install this integration via [HACS](https://hacs.xyz/), follow these steps:
 
 ## Manual Installation
 If you prefer manual installation:
-1. Download the latest release from the [GitHub repository](https://github.com/YOUR_GITHUB_USERNAME/ha-powerdog).
+1. Download the latest release from the [GitHub repository](https://github.com/patrickweh/ha-powerdog).
 2. Copy the `powerdog` folder into your `custom_components` directory in Home Assistant.
 3. Restart Home Assistant.
 
@@ -44,7 +44,7 @@ Once configured, the PowerDog entities will appear in Home Assistant. You can:
 This integration includes icons and logos for PowerDog. These are used for visual representation in Home Assistant.
 
 ## Support
-If you encounter any issues, feel free to open an issue in the [GitHub repository](https://github.com/YOUR_GITHUB_USERNAME/ha-powerdog/issues).
+If you encounter any issues, feel free to open an issue in the [GitHub repository](https://github.com/patrickweh/ha-powerdog/issues).
 
 ## License
 This integration is released under the MIT License.

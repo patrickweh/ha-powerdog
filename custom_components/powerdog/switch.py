@@ -126,7 +126,6 @@ class PowerDogSwitch(SwitchEntity):
             return
 
         value = self._hub.switches.get(self._entity_id, {}).get("Current_Value")
-        _LOGGER.warning(f"⚠️ Entität {self._entity_id} value ist {value}")
         if value is not None:
             self._state = bool(int(value))  # ✅ Status korrekt setzen
 

@@ -1,5 +1,6 @@
 import logging
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor.const import SensorDeviceClass, SensorStateClass
 from homeassistant.helpers.device_registry import DeviceInfo
 from . import DOMAIN
 
@@ -15,7 +16,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(entities, True)
     _LOGGER.debug(f"🚀 {len(entities)} SENSOR-Entitäten erfolgreich hinzugefügt!")
 
-class PowerDogSensor(Entity):
+class PowerDogSensor(SensorEntity):
     """Ein PowerDog Sensor."""
     def __init__(self, hub, entry, entity_id, entity_info):
         self._hub = hub
@@ -34,6 +35,14 @@ class PowerDogSensor(Entity):
             manufacturer="PowerDog",
             model="API"
         )
+
+        # Prüfen, ob es sich um einen Energiezähler handelt
+        if self._unit in ["Wh", "kWh", "MWh"]:
+            self._attr_device_class = SensorDeviceClass.ENERGY
+            self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        else:
+            self._attr_device_class = None
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
     def update(self):
         """Hole aktuelle Daten von der API."""

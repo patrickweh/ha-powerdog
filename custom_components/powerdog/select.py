@@ -90,5 +90,3 @@ class PowerDogModeSelect(SelectEntity):
         if self.registry_entry:
             self.async_write_ha_state()
             _LOGGER.debug(f"🔄 {self._name} aktualisiert auf {self._state} von {value}")
-        else:
-            _LOGGER.warning(f"⚠️ HA hat {self._name} noch nicht registriert!")

@@ -124,6 +124,9 @@ class PowerDogHub:
                                 "Current_Value": entity_info[usage_type],
                                 "Unit": correct_unit,
                             }
+            else:
+                # log the entity info for debug purposes
+                _LOGGER.debug(f"🔍 {entity_info.get('Name', key)}: {entity_info}")
 
 
 

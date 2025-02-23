@@ -133,5 +133,3 @@ class PowerDogSwitch(SwitchEntity):
         if self.registry_entry:
             self.async_write_ha_state()
             _LOGGER.debug(f"🔄 {self._name} aktualisiert auf {self._state}")
-        else:
-            _LOGGER.warning(f"⚠️ HA hat {self._name} noch nicht registriert!")

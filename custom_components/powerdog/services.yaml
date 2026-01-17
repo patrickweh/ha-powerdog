@@ -1,0 +1,12 @@
+set_auto_mode:
+  name: Set Auto Mode
+  description: Sets a PowerDog switch to automatic mode
+  fields:
+    entity_id:
+      name: Entity
+      description: The entity ID of the switch to set to auto mode
+      required: true
+      selector:
+        entity:
+          domain: switch
+          integration: powerdog

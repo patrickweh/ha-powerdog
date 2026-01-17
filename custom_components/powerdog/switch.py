@@ -25,7 +25,7 @@ class PowerDogSwitch(SwitchEntity):
         self._entry = entry
         self._entity_id = entity_id
         self._name = f"{entity_info.get('Name', entity_id)}"
-        self._attr_unique_id = f"powerdog_{self._entity_id}"
+        self._attr_unique_id = f"powerdog_switch_{self._entity_id}"
         self._value = float(entity_info.get("Current_Value", 0))
 
         self._attr_device_info = DeviceInfo(

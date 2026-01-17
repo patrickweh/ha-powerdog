@@ -26,7 +26,7 @@ class PowerDogNumber(NumberEntity):
         _LOGGER.debug(f"Initializing Number {self._name}...")
         self._state = entity_info.get("Current_Value", None)
         self._unit = entity_info.get("Unit", "")
-        self._attr_unique_id = f"powerdog_{self._entity_id}"
+        self._attr_unique_id = f"powerdog_number_{self._entity_id}"
         self._value = float(entity_info.get("Current_Value", 0))
 
         self._attr_device_info = DeviceInfo(

@@ -18,7 +18,7 @@ class PowerDogModeSelect(SelectEntity):
         self._entity_id = entity_id
         self._name = f"{entity_info.get('Name', entity_id)}"
         self._unit = entity_info.get("Unit", "")
-        self._attr_unique_id = f"powerdog_{self._entity_id}"
+        self._attr_unique_id = f"powerdog_select_{self._entity_id}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, str(entry.entry_id))},
             name="PowerDog",

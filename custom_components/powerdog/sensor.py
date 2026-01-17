@@ -23,11 +23,20 @@ class PowerDogSensor(SensorEntity):
         self._entry = entry
         self._entity_id = entity_id
         self._name = f"{entity_info.get('Name', entity_id)}"
-        self._state = entity_info.get("Current_Value", None)
         self._unit = entity_info.get("Unit", "")
         self._attr_unique_id = f"powerdog_{self._entity_id}"
-        # Wert setzen
-        self._value = float(entity_info.get("Current_Value", 0))
+
+        # Convert Wh to kWh
+        self._convert_to_kwh = self._unit == "Wh"
+        if self._convert_to_kwh:
+            self._unit = "kWh"
+
+        raw_value = entity_info.get("Current_Value", None)
+        if raw_value is not None and self._convert_to_kwh:
+            self._state = round(float(raw_value) / 1000, 3)
+        else:
+            self._state = raw_value
+        self._value = float(raw_value) if raw_value else 0
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, str(entry.entry_id))},  # Nutze `entry_id`
@@ -37,7 +46,7 @@ class PowerDogSensor(SensorEntity):
         )
 
         # Prüfen, ob es sich um einen Energiezähler handelt
-        if self._unit in ["Wh", "kWh", "MWh"]:
+        if self._unit in ["kWh", "MWh"] or self._convert_to_kwh:
             self._attr_device_class = SensorDeviceClass.ENERGY
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         else:
@@ -68,14 +77,13 @@ class PowerDogSensor(SensorEntity):
     async def async_update(self):
         """Aktualisiert den Wert aus dem Hub."""
         if self._entity_id not in self._hub.sensors:
-            _LOGGER.warning(f"⚠️ Entität {self._entity_id} existiert nicht mehr im Hub-Datenbestand!")
+            _LOGGER.warning(f"Entity {self._entity_id} no longer exists in hub data!")
             return
 
         value = self._hub.sensors[self._entity_id].get("Current_Value")
         if value is not None:
-            self._state = value
-
-        # ✅ Erst updaten, wenn die Entität wirklich registriert wurde
-        if self.registry_entry:
-            self.async_write_ha_state()
-            _LOGGER.debug(f"🔄 {self._name} aktualisiert auf {self._state}")
+            if self._convert_to_kwh:
+                self._state = round(float(value) / 1000, 3)
+            else:
+                self._state = value
+            _LOGGER.debug(f"{self._name} updated to {self._state}")

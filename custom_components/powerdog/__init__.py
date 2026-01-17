@@ -177,11 +177,10 @@ class PowerDogHub:
             if entity_id in self.selects:
                 self.selects[entity_id]["Current_Value"] = current_value
 
-            # Falls es ein Counter ist, auch die Usage-Werte aktualisieren
-            if entity_id in self.sensors and self.sensors[entity_id].get("LinearType") == "counter":
-                for usage_type in ["30Day_Usage", "Today_Usage", "Year_Usage"]:
-                    usage_entity_id = f"{entity_id}_{usage_type.lower()}"
-                    if usage_entity_id in self.sensors:
-                        self.sensors[usage_entity_id]["Current_Value"] = value_data.get(usage_type, 0)
+            # Update counter usage values if present in the response
+            for usage_type in ["30Day_Usage", "Today_Usage", "Year_Usage"]:
+                usage_entity_id = f"{entity_id}_{usage_type.lower()}"
+                if usage_entity_id in self.sensors and usage_type in value_data:
+                    self.sensors[usage_entity_id]["Current_Value"] = value_data.get(usage_type, 0)
 
         _LOGGER.debug("✅ PowerDog Werte erfolgreich aktualisiert!")

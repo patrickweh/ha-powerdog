@@ -1,187 +1,133 @@
-import asyncio
-import logging
-import xmlrpc.client
+"""PowerDog integration for Home Assistant.
 
-from homeassistant.core import HomeAssistant
+For more details about this integration, please refer to the documentation at
+https://www.home-assistant.io/integrations/powerdog/
+"""
+import logging
+from datetime import timedelta
+
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.typing import ConfigType
-from .const import DOMAIN  # Hier wird DOMAIN aus const.py importiert
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_PORT,
+    Platform,
+)
+from homeassistant.core import HomeAssistant
+import homeassistant.helpers.config_validation as cv
+
+from .coordinator import PowerDogCoordinator
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, DEFAULT_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
+# Platform definitions - expanded to include all supported platforms
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Setze die Konfigurationsdatei ein (configuration.yaml)."""
-    _LOGGER.debug("🔄 async_setup() in __init__.py wurde aufgerufen!")
+# Configuration schema
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_HOST): cv.string,
+                vol.Required(CONF_PASSWORD): cv.string,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                ): cv.time_period,
+                vol.Optional(
+                    CONF_PORT, default=DEFAULT_PORT
+                ): cv.port,
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+
+async def async_setup(hass: HomeAssistant, config):
+    """Set up the PowerDog component."""
+    if DOMAIN not in config:
+        return True
+
+    host = config[DOMAIN][CONF_HOST]
+    password = config[DOMAIN][CONF_PASSWORD]
+    scan_interval = config[DOMAIN][CONF_SCAN_INTERVAL]
+    port = config[DOMAIN][CONF_PORT]
+
+    # Store configuration for platform setup
     hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN] = {
+        "host": host,
+        "password": password,
+        "scan_interval": scan_interval,
+        "port": port,
+    }
+
+    # Set up services
+    from .services import async_setup_services
+    await async_setup_services(hass)
+
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Setze die Konfiguration über die UI ein."""
-    _LOGGER.debug("🚀 async_setup_entry() wurde aufgerufen! Registriere Plattformen...")
+    """Set up PowerDog from a config entry."""
+    host = entry.data[CONF_HOST]
+    password = entry.data[CONF_PASSWORD]
+    port = entry.data.get(CONF_PORT, DEFAULT_PORT)
 
-    hub = PowerDogHub(
-        hass,
-        entry.data["host"],
-        entry.data.get("port", 20000),
-        entry.data["password"],
-        entry.data.get("interval", 30)
-    )
+    # Convert scan_interval to timedelta if it's an integer (seconds)
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    if isinstance(scan_interval, int):
+        scan_interval = timedelta(seconds=scan_interval)
 
-    await hub.async_fetch_data()
-    hass.data[DOMAIN]["hub"] = hub
+    # Create data update coordinator
+    coordinator = PowerDogCoordinator(hass, host, password, scan_interval, port)
 
-    # Starte das periodische Update
-    hass.loop.create_task(hub.async_update_loop())
+    # Initial refresh to load device definitions
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:
+        _LOGGER.error("Error refreshing PowerDog data: %s", err)
+        # We'll continue anyway and let the error handling in the coordinator deal with it
 
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "switch", "select", "number"])
-    _LOGGER.debug("✅ Plattformen erfolgreich registriert!")
+    # Store coordinator for platforms to access
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    # Set up all platforms
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register reload handler for when config entry is updated
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
+    # Set up services
+    from .services import async_setup_services
+    await async_setup_services(hass)
+
     return True
 
 
-class PowerDogHub:
-    """Verwaltet die Kommunikation mit der PowerDog API."""
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    def __init__(self, hass: HomeAssistant, host: str, port: int, password: str, interval: int):
-        """Initialisiere PowerDog API-Verbindung."""
-        self.hass = hass
-        self.host = host
-        self.port = port
-        self.password = password
-        self.interval = interval
-        self.client = xmlrpc.client.ServerProxy(f"http://{host}:{port}/")
+    if unload_ok:
+        # Remove this config entry from data
+        hass.data[DOMAIN].pop(entry.entry_id)
 
-        self.sensors = {}
-        self.switches = {}
-        self.selects = {}
-        self.numbers = {}
+        # Unload services if this is the last config entry
+        if not hass.data[DOMAIN]:
+            from .services import async_unload_services
+            await async_unload_services(hass)
 
-    async def async_fetch_data(self):
-        """Lade ALLE Sensordaten in separaten API-Requests."""
-        _LOGGER.debug("📡 Hole Sensordaten von PowerDog API...")
-
-        def fetch(method):
-            """Synchrone API-Abfrage in separatem Thread."""
-            try:
-                response = getattr(self.client, method)(self.password)
-                if response.get("ErrorCode") == 0:
-                    return response.get("Reply", {})
-                else:
-                    _LOGGER.error(f"⚠️ Fehler bei API-Aufruf {method}: {response}")
-                    return {}
-            except Exception as e:
-                _LOGGER.error(f"❌ PowerDog API-Fehler bei {method}: {e}")
-                return {}
-
-        # ❗ **Jetzt ALLE API-Methoden getrennt abrufen!**
-        sensors_data = await asyncio.to_thread(fetch, "getSensors")
-        counters_data = await asyncio.to_thread(fetch, "getCounters")
-        regulations_data = await asyncio.to_thread(fetch, "getRegulations")
-        linear_devices_data = await asyncio.to_thread(fetch, "getLinearDevices")
-
-        all_data = {**sensors_data, **counters_data, **regulations_data, **linear_devices_data}
-
-        if not all_data:
-            _LOGGER.error("❌ API-Antwort ist leer!")
-            return
-
-        _LOGGER.debug(f"📊 API-Rohdaten geladen: {len(all_data)} Einträge")
-
-        for entity_id, entity_info in all_data.items():
-            key = entity_info.get("Key")  # Eindeutige Geräte-ID
-
-            setable = entity_info.get("Setable", "")
-            linear_type = entity_info.get("LinearType", "")
-
-            if "onoff(bool)" in setable:
-                self.switches[key] = entity_info
-            if "manual(bool)" in setable:
-                self.selects[key] = entity_info
-            if "value(double)" in setable:
-                self.numbers[key] = entity_info
-
-            if not setable:
-                self.sensors[key] = entity_info  # Standard-Sensor
-
-            # Zusätzliche Zählerwerte nur für Counter speichern
-            if linear_type == "counter":
-                for usage_type in ["30Day_Usage", "Today_Usage", "Year_Usage"]:
-                    if usage_type in entity_info:
-                        usage_entity_id = f"{key}_{usage_type.lower()}"
-
-                        if usage_entity_id not in self.sensors:
-                            base_unit = entity_info.get("Unit", "W")
-                            time_unit = entity_info.get("Unit_Time_Add", "")
-
-                            if time_unit.lower() == "h":
-                                correct_unit = base_unit + "h"  # z.B. "Wh", "kWh", "MWh"
-                            else:
-                                correct_unit = base_unit
-
-                            self.sensors[usage_entity_id] = {
-                                "Name": f"{entity_info.get('Name', 'Unknown')} {usage_type.replace('_', ' ')}",
-                                "Current_Value": entity_info[usage_type],
-                                "Unit": correct_unit,
-                            }
-            else:
-                # log the entity info for debug purposes
-                _LOGGER.debug(f"🔍 {entity_info.get('Name', key)}: {entity_info}")
+    return unload_ok
 
 
-
-        _LOGGER.debug(f"✅ PowerDog API-Daten geladen: {len(self.sensors)} Sensoren, {len(self.switches)} Switches, {len(self.numbers)} Numbers")
-
-    async def async_update_loop(self):
-        """Regelmäßige Aktualisierung der PowerDog API-Werte."""
-        while True:
-            _LOGGER.debug("🔄 PowerDog Update wurde getriggert.")
-            await self.async_update_values()
-            await asyncio.sleep(self.interval)  # Alle 60 Sekunden abrufen
-
-    async def async_update_values(self):
-        """Holt aktuelle Werte von PowerDog und speichert sie."""
-        _LOGGER.debug("📡 Rufe aktuelle Werte über getAllCurrentLinearValues ab...")
-
-        def fetch():
-            """Synchrone API-Abfrage für aktuelle Werte."""
-            try:
-                response = self.client.getAllCurrentLinearValues(self.password)
-                if isinstance(response, dict) and response.get("ErrorCode") == 0:
-                    return response.get("Reply", {})
-                else:
-                    _LOGGER.error(f"⚠️ Fehlerhafte Antwort von getAllCurrentLinearValues: {response}")
-                    return {}
-            except Exception as e:
-                _LOGGER.error(f"❌ Fehler beim Abrufen der aktuellen Werte: {e}")
-                return {}
-
-        values = await asyncio.to_thread(fetch)
-
-        if not values:
-            _LOGGER.warning("⚠️ Keine aktuellen Werte erhalten.")
-            return
-
-        _LOGGER.debug(f"📊 {len(values)} aktuelle Werte von PowerDog erhalten.")
-
-        # Setze die aktuellen Werte in den Entitäten
-        for entity_id, value_data in values.items():
-            current_value = value_data.get("Current_Value")
-
-            if entity_id in self.sensors:
-                self.sensors[entity_id]["Current_Value"] = current_value
-            if entity_id in self.switches:
-                self.switches[entity_id]["Current_Value"] = current_value
-            if entity_id in self.numbers:
-                self.numbers[entity_id]["Current_Value"] = current_value
-            if entity_id in self.selects:
-                self.selects[entity_id]["Current_Value"] = current_value
-
-            # Falls es ein Counter ist, auch die Usage-Werte aktualisieren
-            if entity_id in self.sensors and self.sensors[entity_id].get("LinearType") == "counter":
-                for usage_type in ["30Day_Usage", "Today_Usage", "Year_Usage"]:
-                    usage_entity_id = f"{entity_id}_{usage_type.lower()}"
-                    if usage_entity_id in self.sensors:
-                        self.sensors[usage_entity_id]["Current_Value"] = value_data.get(usage_type, 0)
-
-        _LOGGER.debug("✅ PowerDog Werte erfolgreich aktualisiert!")
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry when it changed."""
+    await hass.config_entries.async_reload(entry.entry_id)

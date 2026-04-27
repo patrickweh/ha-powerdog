@@ -1,12 +1,11 @@
 {
-    "domain": "powerdog",
-    "name": "PowerDog",
-    "version": "1.0.0",
-    "documentation": "https://www.home-assistant.io/integrations/powerdog",
-    "requirements": [],
-    "dependencies": [],
-    "codeowners": ["@deinGitHubUsername"],
-    "config_flow": true,
-    "iot_class": "local_polling",
-    "integrations": ["sensor", "switch", "number", "select"]
+  "domain": "powerdog",
+  "name": "PowerDog",
+  "version": "1.1.0",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/powerdog",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [],
+  "iot_class": "local_polling"
 }

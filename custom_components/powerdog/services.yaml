@@ -1,0 +1,38 @@
+set_counter_value:
+  description: Sets a value for a PowerDog counter device
+  fields:
+    entity_id:
+      description: The entity ID of the counter.
+      example: sensor.powerdog_test_counter
+      required: true
+      selector:
+        entity:
+          domain: sensor
+          integration: powerdog
+    value:
+      description: The value to set.
+      example: "150.5"
+      required: true
+      selector:
+        number:
+          min: 0
+          step: 0.1
+    meter_reading:
+      description: The meter reading value.
+      example: "10002"
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+
+reload_devices:
+  description: Reloads device definitions from the PowerDog API
+  fields:
+    entity_id:
+      description: The entity ID to reload devices for. If not specified, all PowerDog devices will be reloaded.
+      example: sensor.powerdog_test_sensor
+      required: false
+      selector:
+        entity:
+          integration: powerdog

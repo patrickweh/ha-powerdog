@@ -1,5 +1,6 @@
 """PowerDog base entity."""
 import logging
+import math
 from typing import Any, Dict, Optional
 
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -79,28 +80,35 @@ class PowerDogEntity(CoordinatorEntity):
 
     @property
     def current_value(self):
-        """Get the current value for this entity."""
+        """Get the current value for this entity.
+
+        Returns ``None`` when the device reports a non-finite value such as
+        ``nan`` (e.g. PowerDog "Anforderung WP" while idle) — HA renders this
+        as ``unknown`` instead of raising on numeric sensors.
+        """
         current_values = self.coordinator.data.get("current_values", {})
         device_data = current_values.get(self._device_key, {})
-        if device_data:
-            try:
-                value = device_data.get("Current_Value", 0)
-                # Handle both string and numeric values
-                if isinstance(value, (int, float)):
-                    return value
-                elif isinstance(value, str):
-                    # Convert comma decimal separator to period for float conversion
-                    value = value.replace(',', '.')
-                    return float(value)
-                return 0
-            except (ValueError, TypeError):
-                _LOGGER.warning(
-                    "Invalid value for %s: %s - using 0",
-                    self._device_key,
-                    device_data.get("Current_Value")
-                )
-                return 0
-        return 0
+        if not device_data:
+            return None
+
+        raw = device_data.get("Current_Value")
+        if raw is None:
+            return None
+
+        try:
+            if isinstance(raw, (int, float)):
+                value = float(raw)
+            else:
+                value = float(str(raw).replace(",", "."))
+        except (ValueError, TypeError):
+            _LOGGER.debug(
+                "Non-numeric value for %s: %r", self._device_key, raw
+            )
+            return None
+
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
 
     @property
     def device_properties(self) -> Dict[str, Any]:

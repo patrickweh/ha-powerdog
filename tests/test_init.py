@@ -43,6 +43,30 @@ async def test_unload_entry(
     assert init_integration.state is ConfigEntryState.NOT_LOADED
 
 
+async def test_nan_value_renders_as_unknown(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_powerdog_client: MagicMock,
+) -> None:
+    """PowerDog occasionally returns 'nan' (e.g. Anforderung WP idle) — HA must
+    not raise on numeric sensors but render the state as ``unknown``."""
+    from copy import deepcopy
+
+    from .const import CURRENT_VALUES
+
+    bad = deepcopy(CURRENT_VALUES)
+    bad["regulation_4"]["Current_Value"] = "nan"
+    mock_powerdog_client.get_all_current_values.return_value = bad
+
+    coordinator = hass.data["powerdog"][init_integration.entry_id]
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.powerdog_test_0001_q_hybrid")
+    assert state is not None
+    assert state.state == "unknown"
+
+
 async def test_coordinator_marks_entities_unavailable_on_api_error(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,

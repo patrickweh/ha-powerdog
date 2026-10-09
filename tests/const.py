@@ -86,6 +86,14 @@ COUNTERS: dict[str, dict[str, Any]] = {
         "Year_Usage": "98765",
         "Valid": True,
     },
+    "buscounter_2": {
+        "Name": "Gas",
+        "Type": "Gas",
+        "Unit": "m³",
+        "Current_Value": "0",
+        "Today_Usage": "2,5",
+        "Valid": True,
+    },
 }
 
 LINEAR_DEVICES: dict[str, dict[str, Any]] = {}

@@ -57,42 +57,17 @@ async def async_setup_entry(
             elif device_props["is_counter"]:
                 entities.append(PowerDogCounterSensor(coordinator, device_key))
 
-                # Add energy usage sensors for counters if they track energy
-                if device_props["type"] == "Energy":
-                    # Only add these extra sensors if the device has the usage fields
-                    device_data = coordinator.data["current_values"].get(device_key, {})
-
-                    # Add daily usage sensor if available in data
-                    if "Today_Usage" in device_data:
+            # Usage sensors for every counter that reports them (as on main).
+            if device_props["is_counter"]:
+                device_data = coordinator.data["current_values"].get(device_key, {})
+                for usage_key, period in (
+                    ("Today_Usage", "Today"),
+                    ("30Day_Usage", "30 Days"),
+                    ("Year_Usage", "Year"),
+                ):
+                    if usage_key in device_data:
                         entities.append(
-                            PowerDogEnergySensor(
-                                coordinator,
-                                device_key,
-                                "Today_Usage",
-                                "Today"
-                            )
-                        )
-
-                    # Add 30-day usage sensor if available in data
-                    if "30Day_Usage" in device_data:
-                        entities.append(
-                            PowerDogEnergySensor(
-                                coordinator,
-                                device_key,
-                                "30Day_Usage",
-                                "30 Days"
-                            )
-                        )
-
-                    # Add yearly usage sensor if available in data
-                    if "Year_Usage" in device_data:
-                        entities.append(
-                            PowerDogEnergySensor(
-                                coordinator,
-                                device_key,
-                                "Year_Usage",
-                                "Year"
-                            )
+                            PowerDogEnergySensor(coordinator, device_key, usage_key, period)
                         )
         except Exception as e:
             _LOGGER.warning(
@@ -192,22 +167,20 @@ class PowerDogEnergySensor(PowerDogEntity, SensorEntity):
         self._attr_name = f"PowerDog {self._name} Usage {period}"
         self._attr_unique_id = f"powerdog_{device_key}_{usage_key.lower()}"
 
-        # Set appropriate units and device class for energy usage.
-        # Wh usage is reported in kWh, as the deployed entities already are.
+        # Unit as on main: base unit + "h" for hourly counters, Wh shown as kWh.
+        unit = self._unit + "h" if self._time_unit.lower() == "h" else self._unit
         self._divisor = 1
-        if self._time_unit == "h":  # If it's an hourly measurement
-            if self._unit == "W":
-                self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-                self._divisor = 1000
-            elif self._unit == "kW":
-                self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-            else:
-                self._attr_native_unit_of_measurement = self._unit
-        else:
-            self._attr_native_unit_of_measurement = self._unit
+        if unit == "Wh":
+            unit = UnitOfEnergy.KILO_WATT_HOUR
+            self._divisor = 1000
+        self._attr_native_unit_of_measurement = unit
 
-        self._attr_device_class = SensorDeviceClass.ENERGY
-        self._attr_state_class = SensorStateClass.TOTAL
+        if unit in (UnitOfEnergy.KILO_WATT_HOUR, UnitOfEnergy.MEGA_WATT_HOUR):
+            self._attr_device_class = SensorDeviceClass.ENERGY
+            self._attr_state_class = SensorStateClass.TOTAL
+        else:
+            self._attr_device_class = None
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def native_value(self):

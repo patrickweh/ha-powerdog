@@ -19,3 +19,19 @@ async def test_usage_sensor_reports_kwh(
     state = hass.states.get(entity_id)
     assert float(state.state) == 1.234
     assert state.attributes["unit_of_measurement"] == "kWh"
+
+
+async def test_usage_sensor_for_non_energy_counter_keeps_raw_unit(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+) -> None:
+    """Non-energy counters get usage sensors too, with raw value and unit."""
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", "powerdog", "powerdog_buscounter_2_today_usage"
+    )
+    assert entity_id is not None
+
+    state = hass.states.get(entity_id)
+    assert float(state.state) == 2.5
+    assert state.attributes["unit_of_measurement"] == "m³"
+    assert "device_class" not in state.attributes

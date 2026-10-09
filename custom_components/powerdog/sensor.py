@@ -192,10 +192,13 @@ class PowerDogEnergySensor(PowerDogEntity, SensorEntity):
         self._attr_name = f"PowerDog {self._name} Usage {period}"
         self._attr_unique_id = f"powerdog_{device_key}_{usage_key.lower()}"
 
-        # Set appropriate units and device class for energy usage
+        # Set appropriate units and device class for energy usage.
+        # Wh usage is reported in kWh, as the deployed entities already are.
+        self._divisor = 1
         if self._time_unit == "h":  # If it's an hourly measurement
             if self._unit == "W":
-                self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+                self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+                self._divisor = 1000
             elif self._unit == "kW":
                 self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
             else:
@@ -216,7 +219,7 @@ class PowerDogEnergySensor(PowerDogEntity, SensorEntity):
                 if isinstance(value, str):
                     # Convert comma decimal separator to period for float conversion
                     value = value.replace(',', '.')
-                return float(value)
+                return round(float(value) / self._divisor, 3)
             except (ValueError, TypeError):
                 return 0
         return 0

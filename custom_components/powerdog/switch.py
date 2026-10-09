@@ -5,6 +5,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .client import PowerDogError
@@ -34,6 +35,11 @@ async def async_setup_entry(
 
     if entities:
         async_add_entities(entities)
+
+    # Kept from the previous integration so existing automations keep working.
+    entity_platform.async_get_current_platform().async_register_entity_service(
+        "set_auto_mode", {}, "async_set_auto_mode"
+    )
 
 
 class PowerDogSwitch(PowerDogEntity, SwitchEntity):
@@ -78,20 +84,27 @@ class PowerDogSwitch(PowerDogEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs):
         await self._async_set(False)
 
+    async def async_set_auto_mode(self) -> None:
+        """Hand the regulation back to automatic mode (manual=0)."""
+        await self._async_write("manual", False)
+
     async def _async_set(self, on: bool) -> None:
         if not self._toggle_param:
             raise HomeAssistantError(
                 f"PowerDog regulation {self._device_key} has no boolean toggle parameter"
             )
+        await self._async_write(self._toggle_param, on)
+
+    async def _async_write(self, param: str, on: bool) -> None:
         try:
             await self.hass.async_add_executor_job(
                 self.coordinator.api.set_regulation_parameter,
                 self._device_key,
-                self._toggle_param,
+                param,
                 on,
             )
         except PowerDogError as err:
             raise HomeAssistantError(
-                f"Failed to set {self._device_key} {self._toggle_param}={on}: {err}"
+                f"Failed to set {self._device_key} {param}={on}: {err}"
             ) from err
         await self.coordinator.async_request_refresh()

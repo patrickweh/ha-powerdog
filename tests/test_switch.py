@@ -20,7 +20,7 @@ async def test_switch_state_for_manualvalue(
     init_integration: MockConfigEntry,
 ) -> None:
     """ManualValue regulations expose OnOff as the boolean switch state."""
-    state = hass.states.get("switch.powerdog_test_0001_q_h_0_100")
+    state = hass.states.get("switch.q_h_0_100")
     assert state is not None
     assert state.state == STATE_OFF
 
@@ -30,7 +30,7 @@ async def test_switch_state_for_manualautoswitch(
     init_integration: MockConfigEntry,
 ) -> None:
     """ManualAutoSwitch regulations expose SwitchMode as the boolean state."""
-    state = hass.states.get("switch.powerdog_test_0001_pumpe_q_h_h_a")
+    state = hass.states.get("switch.pumpe_q_h_h_a")
     assert state is not None
     assert state.state == STATE_OFF
 
@@ -44,7 +44,7 @@ async def test_turn_on_manualvalue_uses_onoff_param(
     await hass.services.async_call(
         "switch",
         "turn_on",
-        {"entity_id": "switch.powerdog_test_0001_q_h_0_100"},
+        {"entity_id": "switch.q_h_0_100"},
         blocking=True,
     )
     mock_powerdog_client.set_regulation_parameter.assert_called_with(
@@ -61,7 +61,7 @@ async def test_turn_off_manualautoswitch_uses_manual_param(
     await hass.services.async_call(
         "switch",
         "turn_off",
-        {"entity_id": "switch.powerdog_test_0001_pumpe_q_h_h_a"},
+        {"entity_id": "switch.pumpe_q_h_h_a"},
         blocking=True,
     )
     mock_powerdog_client.set_regulation_parameter.assert_called_with(
@@ -83,7 +83,7 @@ async def test_switch_reflects_updated_state_after_refresh(
     await coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    assert hass.states.get("switch.powerdog_test_0001_q_h_0_100").state == STATE_ON
+    assert hass.states.get("switch.q_h_0_100").state == STATE_ON
 
 
 async def test_turn_on_propagates_api_failure(
@@ -98,6 +98,23 @@ async def test_turn_on_propagates_api_failure(
         await hass.services.async_call(
             "switch",
             "turn_on",
-            {"entity_id": "switch.powerdog_test_0001_q_h_0_100"},
+            {"entity_id": "switch.q_h_0_100"},
             blocking=True,
         )
+
+
+async def test_set_auto_mode_writes_manual_off(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_powerdog_client: MagicMock,
+) -> None:
+    """powerdog.set_auto_mode hands the regulation back to automatic mode."""
+    await hass.services.async_call(
+        "powerdog",
+        "set_auto_mode",
+        {"entity_id": "switch.q_h_0_100"},
+        blocking=True,
+    )
+    mock_powerdog_client.set_regulation_parameter.assert_called_with(
+        "regulation_1", "manual", False
+    )

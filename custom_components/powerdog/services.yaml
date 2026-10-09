@@ -36,3 +36,11 @@ reload_devices:
       selector:
         entity:
           integration: powerdog
+
+set_auto_mode:
+  name: Set Auto Mode
+  description: Sets a PowerDog switch to automatic mode
+  target:
+    entity:
+      domain: switch
+      integration: powerdog

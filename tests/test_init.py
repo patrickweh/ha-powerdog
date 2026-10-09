@@ -19,17 +19,17 @@ async def test_setup_creates_entities(
     assert init_integration.state is ConfigEntryState.LOADED
 
     # Setable ManualValue regulation -> switch + number
-    assert hass.states.get("switch.powerdog_test_0001_q_h_0_100") is not None
-    assert hass.states.get("number.powerdog_test_0001_q_h_0_100") is not None
+    assert hass.states.get("switch.q_h_0_100") is not None
+    assert hass.states.get("number.q_h_0_100") is not None
 
     # Energy-typed setable -> number with API max (no switch — no Percent slider).
-    ueberschuss = hass.states.get("number.powerdog_test_0001_ueberschuss_pv")
+    ueberschuss = hass.states.get("number.ueberschuss_pv")
     assert ueberschuss is not None
     assert float(ueberschuss.state) == 250.0
     assert float(ueberschuss.attributes["max"]) == 7000.0
 
     # Non-setable regulation surfaces as a sensor (preserves old entity_ids).
-    assert hass.states.get("sensor.powerdog_test_0001_q_hybrid") is not None
+    assert hass.states.get("sensor.q_hybrid") is not None
 
 
 async def test_unload_entry(
@@ -62,7 +62,7 @@ async def test_nan_value_renders_as_unknown(
     await coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    state = hass.states.get("sensor.powerdog_test_0001_q_hybrid")
+    state = hass.states.get("sensor.q_hybrid")
     assert state is not None
     assert state.state == "unknown"
 
@@ -80,4 +80,4 @@ async def test_coordinator_marks_entities_unavailable_on_api_error(
     await hass.async_block_till_done()
 
     assert coordinator.last_update_success is False
-    assert hass.states.get("switch.powerdog_test_0001_q_h_0_100").state == STATE_UNAVAILABLE
+    assert hass.states.get("switch.q_h_0_100").state == STATE_UNAVAILABLE

@@ -1,54 +1,88 @@
-# PowerDog Home Assistant Integration
+# PowerAPI Integration for Home Assistant
 
-This is a custom integration for Home Assistant that enables communication with PowerDog energy management systems. The integration provides access to PowerDog devices, including sensors, switches, and climate controls, allowing you to monitor and manage your energy system directly from Home Assistant.
+This integration allows you to control and monitor PowerDog devices using the PowerAPI XML-RPC protocol.
 
 ## Features
-- Fetch real-time energy consumption and production data.
-- Control and monitor PowerDog-regulated devices.
-- Full integration with Home Assistant's entity model.
 
-## Installation via HACS
-To install this integration via [HACS](https://hacs.xyz/), follow these steps:
+- Automatic discovery of all sensors, counters, and regulations from your PowerDog device
+- Display sensor readings with appropriate units
+- Control regulations as switches or sliders
+- Energy monitoring with daily, monthly, and yearly statistics
+- Services to control counter values and meter readings
 
-1. Open Home Assistant and navigate to **HACS**.
-2. Go to **Integrations** and click the three-dot menu in the top-right corner.
-3. Select **Custom repositories**.
-4. Add the following repository:
-   ```
-   https://github.com/patrickweh/ha-powerdog
-   ```
-    - Category: **Integration**
-5. Click **Add** and then **Close**.
-6. Search for "PowerDog" in HACS Integrations and install it.
-7. Restart Home Assistant.
+## Installation
 
-## Manual Installation
-If you prefer manual installation:
-1. Download the latest release from the [GitHub repository](https://github.com/patrickweh/ha-powerdog).
-2. Copy the `powerdog` folder into your `custom_components` directory in Home Assistant.
-3. Restart Home Assistant.
+### Manual Installation
+
+1. Copy this directory into your Home Assistant's `custom_components` directory.
+2. Restart Home Assistant.
+3. Navigate to Configuration > Integrations.
+4. Click on "Add Integration" and search for "PowerAPI".
+5. Enter your PowerDog device's IP address and password (default is the Unlock Key).
 
 ## Configuration
-1. Go to **Settings** > **Devices & Services**.
-2. Click **Add Integration** and search for "PowerDog".
-3. Enter your PowerDog connection details (IP address, credentials, etc.).
-4. Follow the setup wizard to configure your devices.
 
-## Usage
-Once configured, the PowerDog entities will appear in Home Assistant. You can:
-- View real-time power usage.
-- Automate energy management based on PowerDog data.
-- Control PowerDog-compatible devices through Home Assistant.
+### Configuration Parameters
 
-## Icons & Logos
-This integration includes icons and logos for PowerDog. These are used for visual representation in Home Assistant.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| host | The IP address of your PowerDog device | Required |
+| password | The PowerAPI password (usually the Unlock Key) | Required |
+| port | The port of the PowerAPI service | 20000 |
+| scan_interval | How often to poll the device for updates (seconds) | 30 |
 
-## Support
-If you encounter any issues, feel free to open an issue in the [GitHub repository](https://github.com/patrickweh/ha-powerdog/issues).
+## Entity Types
 
-## License
-This integration is released under the MIT License.
+The integration creates different entity types based on the PowerDog device:
 
----
-💡 **Contributions are welcome!** If you have improvements, feel free to submit a PR. 🚀
+### Sensors
 
+- Regular sensors for all sensor devices (temperature, pressure, speed, etc.)
+- Counter sensors with appropriate units and device classes
+- Energy usage sensors for energy counters (daily, monthly, yearly)
+
+### Switches
+
+- On/Off controls for percent-based regulations
+
+### Numbers
+
+- Slider controls for variable percent-based regulations
+
+## Services
+
+### `powerapi.set_counter_value`
+
+Sets a value and meter reading for a counter device.
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| entity_id | The entity ID of the counter sensor | Yes |
+| value | The value to set | Yes |
+| meter_reading | The meter reading value (should be increasing) | Yes |
+
+Example:
+```yaml
+service: powerapi.set_counter_value
+data:
+  entity_id: sensor.powerapi_test_counter
+  value: "150.5"
+  meter_reading: "10002"
+```
+
+## Troubleshooting
+
+If you encounter issues with the integration:
+
+1. Check that your PowerDog device is accessible on the network
+2. Verify that the PowerAPI service is enabled on your PowerDog (available since version 1.60)
+3. Confirm that you're using the correct password (default is the Unlock Key)
+4. Check the Home Assistant logs for error messages
+
+## API Documentation
+
+This integration is based on the PowerAPI Local Device API. For more information, refer to the official documentation.
+
+## Credits
+
+This integration is based on the PowerAPI specifications from ecodata GmbH.
